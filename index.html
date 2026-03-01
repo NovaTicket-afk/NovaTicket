@@ -2,39 +2,325 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Ticket Maker </title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<title>NovaTicket</title>
+
 <style>
-html, body{
-    height:100%;
+*{
     margin:0;
-}
-
-:root{
-    --bg:#000;
-    --text:#fff;
-    --card:#111;
-    --generate:#00cc44;
-    --btnText:#fff;
-    --outline:#fff;
-}
-
-body.light{
-    --bg:#fff;
-    --text:#000;
-    --card:#f4f4f4;
-    --generate:#00aa33;
-    --btnText:#fff;
-    --outline:#000;
+    padding:0;
+    box-sizing:border-box;
 }
 
 body{
-    font-family: Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    transition: 0.3s;
+    font-family:Arial,sans-serif;
+    background:#0a0a0a;
+    color:white;
+}
+
+.app{
     display:flex;
-    justify-content:center;
+    height:100vh;
+}
+
+.sidebar{
+    width:220px;
+    background:#0f0f0f;
+    padding:20px;
+}
+
+.sidebar h2{
+    color:#4fa3ff;
+    margin-bottom:20px;
+}
+
+.sidebar button{
+    width:100%;
+    margin:6px 0;
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    background:#1a1a1a;
+    color:white;
+    cursor:pointer;
+}
+
+.sidebar button:hover{
+    background:#222;
+}
+
+.main{
+    flex:1;
+    padding:30px;
+}
+
+.container{
+    max-width:520px;
+    margin:auto;
+    background:#141414;
+    padding:25px;
+    border-radius:15px;
+    box-shadow:0 0 12px rgba(0,0,0,0.8);
+    display:none;
+}
+
+h1{
+    text-align:center;
+    color:#4fa3ff;
+    margin-bottom:20px;
+}
+
+input[type="text"], input[type="number"]{
+    width:100%;
+    padding:10px;
+    border-radius:8px;
+    border:none;
+    background:#1f1f1f;
+    color:white;
+    margin-top:6px;
+}
+
+button{
+    margin-top:10px;
+    padding:10px 14px;
+    border:none;
+    border-radius:8px;
+    background:#4fa3ff;
+    color:white;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#357acc;
+}
+
+.ticket-list{
+    margin-top:20px;
+}
+
+.ticket-item{
+    background:#1b1b1b;
+    padding:10px;
+    margin:6px 0;
+    border-radius:8px;
+    display:flex;
+    justify-content:space-between;
+}
+
+canvas{
+    margin-top:15px;
+    display:none;
+}
+
+/* Light mode */
+.lightMode{
+    background:white;
+    color:black;
+}
+
+.lightMode .sidebar{
+    background:#e5e5e5;
+}
+
+.lightMode .container{
+    background:#f5f5f5;
+    color:black;
+}
+
+@media(max-width:800px){
+    .app{
+        flex-direction:column;
+    }
+
+    .sidebar{
+        width:100%;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="sidebar">
+<h2>🎫 NovaTicket</h2>
+
+<button onclick="showHome()">Home</button>
+<button onclick="showSettings()">⚙ Settings</button>
+<a href="about.html"><button>About</button></a>
+<a href="help.html"><button>Help</button></a>
+</div>
+
+<div class="main">
+
+<!-- Home Panel -->
+<div class="container" id="homePanel">
+
+<h1>Ticket Maker</h1>
+
+<input type="text" id="ticketNote" placeholder="Enter ticket note">
+
+<button onclick="generateTicket()">Generate Ticket</button>
+<button onclick="generateQR()">Generate QR Code</button>
+
+<canvas id="qrCanvas" width="200" height="200"></canvas>
+
+<div class="ticket-list" id="ticketList"></div>
+
+<button onclick="deleteAll()">Delete All Tickets</button>
+
+</div>
+
+<!-- Settings Panel -->
+<div class="container" id="settingsPanel">
+
+<h2>⚙ Settings</h2>
+
+<h3>Theme</h3>
+<button onclick="toggleTheme()">Dark / Light Mode</button>
+
+<h3>Flashlight Mode</h3>
+<button onclick="toggleFlash()">Flashlight Mode</button>
+
+<h3>Security</h3>
+<p>Password Protection</p>
+<button onclick="alert('Password protection coming later!')">
+Enable Password Protection
+</button>
+
+<h3>Data</h3>
+
+<label>Save Prefix</label>
+<input type="text" id="prefixInput" placeholder="Prefix">
+
+<label>History Limit</label>
+<input type="number" id="historyLimit" placeholder="History Limit">
+
+<button onclick="saveSettings()">Save Settings</button>
+
+</div>
+
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+
+/* Navigation */
+
+function showHome(){
+    document.getElementById("homePanel").style.display="block";
+    document.getElementById("settingsPanel").style.display="none";
+}
+
+function showSettings(){
+    document.getElementById("homePanel").style.display="none";
+    document.getElementById("settingsPanel").style.display="block";
+}
+
+/* Ticket System */
+
+function loadTickets(){
+    const list=document.getElementById("ticketList");
+    list.innerHTML="";
+
+    const tickets=JSON.parse(localStorage.getItem("tickets")||"[]");
+
+    tickets.forEach((t,i)=>{
+        const div=document.createElement("div");
+        div.className="ticket-item";
+        div.innerHTML=
+        `<span>${t}</span>
+        <button onclick="removeTicket(${i})">❌</button>`;
+        list.appendChild(div);
+    });
+}
+
+function saveTickets(tickets){
+    localStorage.setItem("tickets",JSON.stringify(tickets));
+    loadTickets();
+}
+
+function generateTicket(){
+    const note=document.getElementById("ticketNote").value.trim();
+    if(!note) return alert("Enter ticket note!");
+
+    const tickets=JSON.parse(localStorage.getItem("tickets")||"[]");
+    tickets.push(note);
+
+    saveTickets(tickets);
+    document.getElementById("ticketNote").value="";
+}
+
+function removeTicket(index){
+    const tickets=JSON.parse(localStorage.getItem("tickets")||"[]");
+    tickets.splice(index,1);
+    saveTickets(tickets);
+}
+
+function deleteAll(){
+    if(confirm("Delete all tickets?")){
+        localStorage.removeItem("tickets");
+        loadTickets();
+    }
+}
+
+/* QR */
+
+function generateQR(){
+    const note=document.getElementById("ticketNote").value.trim();
+    if(!note) return alert("Enter ticket note!");
+
+    const canvas=document.getElementById("qrCanvas");
+    canvas.style.display="block";
+
+    canvas.innerHTML="";
+    new QRCode(canvas,{
+        text:note,
+        width:200,
+        height:200
+    });
+}
+
+/* Settings */
+
+function toggleTheme(){
+    document.body.classList.toggle("lightMode");
+}
+
+function toggleFlash(){
+    alert("Flashlight mode may not work on all devices.");
+}
+
+function saveSettings(){
+
+    const prefix=document.getElementById("prefixInput").value;
+    const limit=document.getElementById("historyLimit").value;
+
+    localStorage.setItem("prefix",prefix);
+    localStorage.setItem("historyLimit",limit);
+
+    alert("Settings saved!");
+}
+
+/* Load Settings */
+
+window.addEventListener("load",()=>{
+    showHome();
+    loadTickets();
+
+    document.getElementById("prefixInput").value=
+        localStorage.getItem("prefix")||"";
+
+    document.getElementById("historyLimit").value=
+        localStorage.getItem("historyLimit")||"";
+});
+
+</script>
+
+</body>
+</html>    justify-content:center;
     align-items:center;
 }
 
