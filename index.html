@@ -358,6 +358,330 @@ loadHistory();
 
 </body>
 </html>
+    justify-content:center;
+    align-items:center;
+}
+
+body.flashlight{
+    background:white !important;
+    color:black !important;
+}
+
+.container{
+    width:100vw;
+    height:100vh;
+    padding:20px;
+    background: var(--card);
+    box-sizing:border-box;
+    overflow:auto;
+    text-align:center;
+}
+
+button{
+    padding: 12px 18px;
+    font-size: 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin: 6px;
+    border: 1px solid var(--outline);
+    background: transparent;
+    color: var(--text);
+}
+
+.generate-btn{
+    background: var(--generate);
+    color: white;
+    border:none;
+}
+
+input, textarea{
+    width: 90%;
+    padding: 10px;
+    margin: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--outline);
+    background: var(--bg);
+    color: var(--text);
+    outline:none;
+}
+
+#ticket{
+    margin-top: 20px;
+    font-size: 26px;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+#qrcode{
+    margin:20px auto;
+    width:160px;
+    height:160px;
+}
+
+.history{
+    margin-top: 30px;
+    text-align: left;
+}
+
+.history li{
+    padding: 6px;
+    border-bottom: 1px solid var(--outline);
+    list-style: none;
+}
+
+.modal{
+    display:none;
+    position:fixed;
+    left:0;
+    top:0;
+    width:100%;
+    height:100%;
+    background: rgba(0,0,0,0.7);
+    justify-content:center;
+    align-items:center;
+}
+
+.modal-content{
+    background: var(--card);
+    padding:30px;
+    border-radius:20px;
+    width:320px;
+    text-align:center;
+    max-height:90vh;
+    overflow-y:auto;
+}
+
+#lockScreen{
+    display:none;
+    position:fixed;
+    width:100%;
+    height:100%;
+    background:black;
+    color:white;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+}
+</style>
+</head>
+
+<body>
+
+<div id="lockScreen">
+<h2>🔒 Locked</h2>
+<input type="password" id="unlockPass" placeholder="Enter password">
+<button onclick="unlockApp()">Unlock</button>
+</div>
+
+<div class="container">
+<h1>🎟 Ticket Maker</h1>
+
+<button onclick="openSettings()">⚙ Settings</button>
+<button onclick="deleteAllTickets()">🗑 Delete All</button>
+<button class="generate-btn" onclick="generateTicket()">Generate Ticket</button>
+
+<div id="ticket"></div>
+
+<div id="qrcode"></div>
+<button onclick="generateQR()">📷 Generate QR Code</button>
+
+<h3>Ticket Note</h3>
+<textarea id="note" placeholder="Write ticket note..."></textarea>
+
+<div class="history">
+<h2>Saved Tickets</h2>
+<ul id="historyList"></ul>
+</div>
+</div>
+
+<div class="modal" id="settingsModal">
+<div class="modal-content">
+<h2>⚙ Settings</h2>
+
+<h3>Theme</h3>
+<button onclick="toggleTheme()">🌗 Dark / Light Mode</button>
+<br><br>
+<button onclick="toggleFlashlight()">🔦 Flashlight Mode</button>
+
+<h3>Security</h3>
+<input type="password" id="setPassword" placeholder="Set app password">
+<br>
+<button onclick="setPassword()">🔐 Enable Password Protection</button>
+<button onclick="removePassword()">❌ Remove Password</button>
+
+<h3>Data</h3>
+<button onclick="deleteAllTickets()">🗑 Delete All Tickets</button>
+
+<h3>More Settings</h3>
+
+<input type="text" id="ticketPrefix" placeholder="Ticket Prefix (default t)">
+<br>
+<button onclick="savePrefix()">💾 Save Prefix</button>
+<br><br>
+
+<input type="number" id="historyLimit" placeholder="History Limit (default 10)">
+<br>
+<button onclick="saveHistoryLimit()">📊 Save History Limit</button>
+
+<p style="opacity:0.7;margin-top:15px">More advanced settings coming soon...</p>
+
+<br>
+<button onclick="closeSettings()">Close</button>
+</div>
+</div>
+
+<script>
+let ticketPrefix = localStorage.getItem("ticketPrefix") || "t";
+let historyLimit = parseInt(localStorage.getItem("historyLimit") || "10");
+
+const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+function generateTicket(){
+    let ticket = ticketPrefix;
+    for(let i=0;i<9;i++){
+        ticket += chars.charAt(Math.floor(Math.random()*chars.length));
+    }
+
+    document.getElementById("ticket").innerText = ticket;
+    saveTicket(ticket, document.getElementById("note").value);
+    document.getElementById("note").value = "";
+    generateQR(ticket);
+}
+
+function generateQR(text){
+    let container = document.getElementById("qrcode");
+    container.innerHTML = "";
+    let value = text || document.getElementById("ticket").innerText;
+    if(!value) return;
+    new QRCode(container, {
+        text:value,
+        width:160,
+        height:160
+    });
+}
+
+function saveTicket(ticket, note){
+    let history = JSON.parse(localStorage.getItem("ticketHistory")||"[]");
+    history.push({ticket, note});
+    localStorage.setItem("ticketHistory", JSON.stringify(history));
+    loadHistory();
+}
+
+function loadHistory(){
+    let history = JSON.parse(localStorage.getItem("ticketHistory")||"[]");
+    let list = document.getElementById("historyList");
+    list.innerHTML = "";
+
+    history.slice(-historyLimit).forEach((item,index)=>{
+        let li = document.createElement("li");
+        li.innerHTML = `
+            <b>${item.ticket}</b><br>
+            <small>${item.note||"No note"}</small>
+            <br>
+            <button onclick="deleteSingleTicket(${index})">Delete</button>
+        `;
+        list.appendChild(li);
+    });
+}
+
+function deleteSingleTicket(index){
+    let history = JSON.parse(localStorage.getItem("ticketHistory")||"[]");
+    history.splice(index,1);
+    localStorage.setItem("ticketHistory", JSON.stringify(history));
+    loadHistory();
+}
+
+function deleteAllTickets(){
+    if(!confirm("Delete all tickets?")) return;
+
+    localStorage.setItem("ticketHistory","[]");
+    loadHistory();
+    alert("All tickets deleted");
+}
+
+function toggleTheme(){
+    document.body.classList.toggle("light");
+    localStorage.setItem("theme", document.body.classList.contains("light")?"light":"dark");
+}
+
+function toggleFlashlight(){
+    document.body.classList.toggle("flashlight");
+    localStorage.setItem("flashlight", document.body.classList.contains("flashlight"));
+}
+
+function openSettings(){
+    document.getElementById("settingsModal").style.display="flex";
+}
+
+function closeSettings(){
+    document.getElementById("settingsModal").style.display="none";
+}
+
+function setPassword(){
+    let pass = document.getElementById("setPassword").value;
+    if(pass){
+        localStorage.setItem("appPassword", pass);
+        alert("Password protection enabled");
+    }
+}
+
+function removePassword(){
+    localStorage.removeItem("appPassword");
+    alert("Password removed");
+}
+
+function lockApp(){
+    if(localStorage.getItem("appPassword")){
+        document.getElementById("lockScreen").style.display="flex";
+    }
+}
+
+function unlockApp(){
+    let pass = document.getElementById("unlockPass").value;
+    if(pass === localStorage.getItem("appPassword")){
+        document.getElementById("lockScreen").style.display="none";
+    } else {
+        alert("Wrong password");
+    }
+}
+
+function loadSettings(){
+    if(localStorage.getItem("theme") === "light"){
+        document.body.classList.add("light");
+    }
+
+    if(localStorage.getItem("flashlight") === "true"){
+        document.body.classList.add("flashlight");
+    }
+
+    ticketPrefix = localStorage.getItem("ticketPrefix") || "t";
+    historyLimit = parseInt(localStorage.getItem("historyLimit") || "10");
+
+    document.getElementById("ticketPrefix").value = ticketPrefix;
+    document.getElementById("historyLimit").value = historyLimit;
+}
+
+function savePrefix(){
+    let val = document.getElementById("ticketPrefix").value || "t";
+    ticketPrefix = val;
+    localStorage.setItem("ticketPrefix", val);
+    alert("Prefix saved");
+}
+
+function saveHistoryLimit(){
+    let val = parseInt(document.getElementById("historyLimit").value || "10");
+    historyLimit = val;
+    localStorage.setItem("historyLimit", val);
+    alert("History limit saved");
+}
+
+lockApp();
+loadSettings();
+loadHistory();
+</script>
+
+</body>
+</html>
     width:220px;
     background:#0f0f0f;
     padding:20px;
